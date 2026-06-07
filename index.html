@@ -1,0 +1,1161 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>えいご でんしゃ ならべ</title>
+  <style>
+    :root{
+      --ink:#102033;
+      --paper:#fffdf6;
+      --line:#d8e2ef;
+      --blue:#2563eb;
+      --cyan:#06b6d4;
+      --green:#16a34a;
+      --yellow:#facc15;
+      --red:#ef4444;
+      --violet:#7c3aed;
+      --shadow:0 18px 48px rgba(7,24,45,.22);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;width:100%;height:100%;overflow:hidden}
+    body{
+      color:var(--ink);
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:#a7e8ff;
+      user-select:none;
+    }
+    button,input,select,textarea{font:inherit}
+    button{
+      border:0;
+      border-radius:8px;
+      padding:10px 14px;
+      min-height:42px;
+      background:var(--blue);
+      color:white;
+      font-weight:900;
+      box-shadow:0 8px 0 #1d4ed8,0 12px 22px rgba(37,99,235,.24);
+      cursor:pointer;
+      touch-action:manipulation;
+    }
+    button:active{transform:translateY(3px);box-shadow:0 5px 0 #1d4ed8,0 8px 18px rgba(37,99,235,.22)}
+    button.secondary{background:#fff;color:#123;border:2px solid #dbeafe;box-shadow:0 6px 0 #bfdbfe}
+    button.good{background:var(--green);box-shadow:0 8px 0 #15803d}
+    button.warn{background:#f97316;box-shadow:0 8px 0 #c2410c}
+    button.hot{background:var(--violet);box-shadow:0 8px 0 #5b21b6}
+    button.selected{outline:4px solid rgba(250,204,21,.75)}
+    button:disabled{opacity:.55;cursor:not-allowed;transform:none}
+    #scene{
+      position:fixed;
+      inset:0;
+      width:100vw;
+      height:100vh;
+      z-index:0;
+    }
+    #app{
+      position:relative;
+      z-index:1;
+      height:100vh;
+      display:grid;
+      grid-template-rows:auto 1fr auto;
+      gap:10px;
+      padding:calc(10px + env(safe-area-inset-top)) 12px calc(10px + env(safe-area-inset-bottom));
+    }
+    .topbar{
+      display:grid;
+      grid-template-columns:auto 1fr auto;
+      align-items:center;
+      gap:10px;
+      max-width:1120px;
+      width:100%;
+      margin:0 auto;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:8px;
+      background:rgba(255,255,255,.82);
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(10px);
+      font-weight:1000;
+      line-height:1;
+    }
+    .trainMark{font-size:28px}
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(5,minmax(72px,1fr));
+      gap:8px;
+    }
+    .stat{
+      border-radius:8px;
+      background:rgba(255,255,255,.86);
+      box-shadow:0 10px 28px rgba(7,24,45,.16);
+      padding:7px 8px;
+      text-align:center;
+      min-height:48px;
+    }
+    .stat small{display:block;font-size:12px;font-weight:800;color:#52657f}
+    .stat b{display:block;font-size:20px;line-height:1.1}
+    .soundState{
+      border-radius:8px;
+      background:rgba(255,255,255,.86);
+      box-shadow:var(--shadow);
+      padding:8px;
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    .game{
+      max-width:1120px;
+      width:100%;
+      margin:0 auto;
+      display:grid;
+      grid-template-columns:1fr;
+      grid-template-rows:auto minmax(290px,1fr) auto;
+      gap:10px;
+      min-height:0;
+    }
+    .prompt{
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:10px;
+      align-items:stretch;
+      border-radius:8px;
+      padding:12px;
+      background:rgba(255,253,246,.9);
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(10px);
+    }
+    .promptText{min-width:0}
+    .eyebrow{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+      font-size:13px;
+      font-weight:900;
+      color:#52657f;
+    }
+    .chip{
+      border:2px solid #dbeafe;
+      background:#eff6ff;
+      color:#1e3a8a;
+      border-radius:999px;
+      padding:4px 9px;
+      font-weight:1000;
+    }
+    .chip.hot{border-color:#ddd6fe;background:#f5f3ff;color:#5b21b6}
+    .meaning{
+      margin:6px 0 0;
+      font-size:clamp(22px,4vw,42px);
+      line-height:1.14;
+      font-weight:1000;
+    }
+    .tip{
+      margin:5px 0 0;
+      color:#34465f;
+      font-size:15px;
+      font-weight:800;
+    }
+    .promptActions{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .playfield{
+      position:relative;
+      min-height:0;
+      border-radius:8px;
+      background:linear-gradient(180deg,rgba(255,255,255,.58),rgba(255,255,255,.34));
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      display:grid;
+      grid-template-rows:auto 1fr;
+      gap:8px;
+      padding:12px;
+      backdrop-filter:blur(8px);
+    }
+    .railWrap{
+      position:relative;
+      min-height:118px;
+      border-radius:8px;
+      background:linear-gradient(180deg,#f8fafc,#e0f2fe);
+      border:2px solid rgba(148,163,184,.45);
+      overflow:hidden;
+      padding:16px 12px 22px;
+    }
+    .rail{
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:20px;
+      height:20px;
+      background:
+        repeating-linear-gradient(90deg,transparent 0 38px,rgba(87,83,78,.48) 38px 48px,transparent 48px 78px),
+        linear-gradient(180deg,transparent 0 6px,#57534e 6px 9px,transparent 9px 13px,#57534e 13px 16px,transparent 16px);
+      opacity:.82;
+    }
+    .slots{
+      position:relative;
+      z-index:2;
+      display:grid;
+      grid-template-columns:repeat(var(--slot-count),minmax(72px,1fr));
+      gap:8px;
+      align-items:end;
+      transition:transform .72s cubic-bezier(.18,.9,.22,1),opacity .72s;
+    }
+    .slots.launch{transform:translateX(108vw);opacity:.28}
+    .slot{
+      position:relative;
+      min-height:64px;
+      border:3px dashed rgba(37,99,235,.28);
+      border-radius:8px;
+      background:rgba(255,255,255,.64);
+      display:grid;
+      place-items:center;
+      padding:4px;
+      transition:background .15s,border-color .15s,transform .15s;
+    }
+    .slot::after{
+      content:attr(data-num);
+      position:absolute;
+      left:6px;
+      top:4px;
+      font-size:12px;
+      font-weight:1000;
+      color:rgba(30,58,138,.35);
+    }
+    .slot:hover,.slot.focus{border-color:rgba(37,99,235,.8);background:rgba(219,234,254,.82)}
+    .slot.goodPlace{border-color:rgba(22,163,74,.8);background:#dcfce7}
+    .yardWrap{
+      position:relative;
+      min-height:0;
+      display:grid;
+      grid-template-rows:auto 1fr;
+      gap:8px;
+    }
+    .yardHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      color:#26364c;
+      font-weight:1000;
+      flex-wrap:wrap;
+    }
+    .modeHint{font-size:14px;color:#52657f;font-weight:900}
+    .yard{
+      position:relative;
+      min-height:128px;
+      border-radius:8px;
+      border:2px solid rgba(148,163,184,.45);
+      background:
+        linear-gradient(180deg,rgba(255,255,255,.72),rgba(255,255,255,.54)),
+        repeating-linear-gradient(0deg,transparent 0 34px,rgba(37,99,235,.08) 34px 36px);
+      padding:12px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-content:flex-start;
+      overflow:hidden;
+    }
+    .yard.moving{
+      min-height:178px;
+      display:block;
+    }
+    .wordCar{
+      position:relative;
+      min-width:86px;
+      min-height:50px;
+      border-radius:12px 12px 8px 8px;
+      padding:9px 13px 12px;
+      display:grid;
+      place-items:center;
+      color:#0f172a;
+      font-size:clamp(18px,2.6vw,27px);
+      line-height:1;
+      font-weight:1000;
+      background:linear-gradient(180deg,#fff,#dbeafe);
+      border:2px solid rgba(15,23,42,.12);
+      box-shadow:0 10px 0 rgba(15,23,42,.16),0 18px 22px rgba(15,23,42,.14);
+      cursor:grab;
+      touch-action:none;
+      transition:filter .12s,box-shadow .12s,opacity .12s,outline .12s;
+      will-change:transform;
+    }
+    .wordCar::before,.wordCar::after{
+      content:"";
+      position:absolute;
+      bottom:-7px;
+      width:16px;
+      height:16px;
+      border-radius:50%;
+      background:#1f2937;
+      border:3px solid #94a3b8;
+    }
+    .wordCar::before{left:12px}
+    .wordCar::after{right:12px}
+    .wordCar .coupler{
+      position:absolute;
+      left:-8px;
+      right:-8px;
+      bottom:9px;
+      height:4px;
+      background:rgba(15,23,42,.25);
+      z-index:-1;
+    }
+    .wordCar.color0{background:linear-gradient(180deg,#fff7ed,#fdba74)}
+    .wordCar.color1{background:linear-gradient(180deg,#ecfeff,#67e8f9)}
+    .wordCar.color2{background:linear-gradient(180deg,#f0fdf4,#86efac)}
+    .wordCar.color3{background:linear-gradient(180deg,#fefce8,#fde047)}
+    .wordCar.color4{background:linear-gradient(180deg,#f5f3ff,#c4b5fd)}
+    .wordCar.selected{outline:5px solid rgba(250,204,21,.82);filter:saturate(1.12)}
+    .wordCar.dragSource{opacity:.34}
+    .wordCar.ghost{
+      position:fixed;
+      left:0;
+      top:0;
+      z-index:50;
+      pointer-events:none;
+      opacity:.96;
+      transform:none;
+    }
+    .wordCar:active{cursor:grabbing}
+    .yard.moving .wordCar{
+      position:absolute;
+      left:0;
+      top:0;
+    }
+    .message{
+      position:absolute;
+      left:50%;
+      top:50%;
+      transform:translate(-50%,-50%) scale(.96);
+      min-width:min(560px,86vw);
+      border-radius:8px;
+      padding:14px 18px;
+      text-align:center;
+      font-size:clamp(22px,4vw,44px);
+      font-weight:1000;
+      color:white;
+      background:rgba(15,23,42,.88);
+      box-shadow:var(--shadow);
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .18s,transform .18s;
+      z-index:8;
+    }
+    .message.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+    .message.good{background:rgba(22,101,52,.9)}
+    .message.bad{background:rgba(185,28,28,.9)}
+    .sentenceShot{
+      position:absolute;
+      left:12px;
+      top:18px;
+      white-space:nowrap;
+      padding:10px 16px;
+      border-radius:999px;
+      background:#0f172a;
+      color:#fff;
+      font-weight:1000;
+      font-size:clamp(18px,3vw,34px);
+      box-shadow:0 12px 24px rgba(15,23,42,.26);
+      opacity:0;
+      transform:translateX(-40px);
+      pointer-events:none;
+      z-index:5;
+    }
+    .sentenceShot.fire{
+      animation:shootSentence .85s cubic-bezier(.18,.86,.16,1) forwards;
+    }
+    @keyframes shootSentence{
+      0%{opacity:0;transform:translateX(-48px) scale(.96)}
+      12%{opacity:1}
+      100%{opacity:0;transform:translateX(96vw) scale(1.02)}
+    }
+    .controls{
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:10px;
+      align-items:center;
+      border-radius:8px;
+      padding:10px 12px;
+      background:rgba(255,253,246,.9);
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(10px);
+    }
+    .modeButtons{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .help{
+      color:#34465f;
+      font-size:14px;
+      font-weight:850;
+      line-height:1.45;
+    }
+    .shake{animation:shake .26s linear}
+    @keyframes shake{
+      0%,100%{transform:translateX(0)}
+      25%{transform:translateX(-8px)}
+      50%{transform:translateX(8px)}
+      75%{transform:translateX(-5px)}
+    }
+    .finish{
+      position:absolute;
+      inset:12px;
+      z-index:20;
+      display:none;
+      place-items:center;
+      border-radius:8px;
+      background:rgba(255,253,246,.94);
+      box-shadow:var(--shadow);
+      text-align:center;
+      padding:20px;
+    }
+    .finish.show{display:grid}
+    .finish h2{font-size:clamp(34px,7vw,72px);line-height:1;margin:0 0 12px}
+    .finish p{font-size:18px;line-height:1.6;margin:8px 0}
+    .finish .bigScore{font-size:clamp(42px,8vw,88px);font-weight:1000;color:#2563eb;line-height:1}
+    @media (max-width:820px){
+      #app{padding:8px;gap:8px}
+      .topbar{grid-template-columns:1fr;gap:8px}
+      .brand{justify-content:center}
+      .stats{grid-template-columns:repeat(5,1fr)}
+      .soundState{justify-content:center}
+      .stat{padding:6px 4px;min-height:44px}
+      .stat b{font-size:17px}
+      .stat small{font-size:11px}
+      .game{grid-template-rows:auto minmax(340px,1fr) auto}
+      .prompt{grid-template-columns:1fr}
+      .promptActions{justify-content:flex-start}
+      .slots{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .slot{min-height:58px}
+      .wordCar{min-width:78px;font-size:20px}
+      .yard.moving{min-height:190px}
+      .controls{grid-template-columns:1fr}
+      .modeButtons button,.promptActions button{flex:1}
+    }
+    @media (max-height:680px) and (min-width:821px){
+      .yard{min-height:108px}
+      .yard.moving{min-height:150px}
+      .railWrap{min-height:104px;padding-top:12px}
+      .meaning{font-size:30px}
+    }
+  </style>
+</head>
+<body>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div id="app">
+  <header class="topbar">
+    <div class="brand"><span class="trainMark">🚆</span><span>えいご<br>でんしゃ ならべ</span></div>
+    <div class="stats" aria-live="polite">
+      <div class="stat"><small>もんだい</small><b><span id="levelNow">1</span>/<span id="levelMax">15</span></b></div>
+      <div class="stat"><small>てん</small><b id="score">0</b></div>
+      <div class="stat"><small>れんぞく</small><b id="streak">0</b></div>
+      <div class="stat"><small>できた</small><b id="cleared">0</b></div>
+      <div class="stat"><small>さいこう</small><b id="best">0</b></div>
+    </div>
+    <div class="soundState">
+      <button id="soundBtn" class="secondary" type="button">音あり</button>
+      <button id="readBtn" class="good" type="button">よむ</button>
+    </div>
+  </header>
+
+  <main class="game">
+    <section class="prompt" aria-label="おだい">
+      <div class="promptText">
+        <div class="eyebrow">
+          <span class="chip" id="modeChip">ゆっくり</span>
+          <span class="chip hot" id="grammarChip">This is = これは ... です</span>
+        </div>
+        <h1 class="meaning" id="meaning">これは わたしの おばあさん です。</h1>
+        <p class="tip" id="tip">単語の でんしゃを ならべよう。あうと しゅっぱつ！</p>
+      </div>
+      <div class="promptActions">
+        <button id="hintBtn" class="warn" type="button">おたすけ</button>
+        <button id="shuffleBtn" class="secondary" type="button">まぜる</button>
+      </div>
+    </section>
+
+    <section class="playfield" id="playfield" aria-label="ゲーム">
+      <div class="railWrap" id="railWrap">
+        <div class="rail"></div>
+        <div class="slots" id="slots"></div>
+        <div class="sentenceShot" id="sentenceShot"></div>
+      </div>
+      <div class="yardWrap">
+        <div class="yardHead">
+          <span>ここから つかんで、上の せんろへ おく</span>
+          <span class="modeHint" id="modeHint">タップでも うごかせます</span>
+        </div>
+        <div class="yard" id="yard"></div>
+      </div>
+      <div class="message" id="message"></div>
+      <div class="finish" id="finish">
+        <div>
+          <h2>ぜんぶ できた！</h2>
+          <div class="bigScore" id="finalScore">0</div>
+          <p id="finalText">英文を たくさん しゅっぱつ させました。</p>
+          <p id="finalTip">もう一回やると、英語のじゅんばんが もっと はやく わかります。</p>
+          <button id="againBtn" class="good" type="button">もう一回</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="controls">
+      <div class="modeButtons" aria-label="モード">
+        <button id="calmBtn" class="secondary selected" type="button">ゆっくり</button>
+        <button id="quickBtn" class="secondary" type="button">テンポ</button>
+        <button id="superBtn" class="hot" type="button">スーパーハード</button>
+      </div>
+      <div class="help" id="helpText">車両をドラッグして ならべます。ぜんぶ入ると すぐに こたえあわせをします。</div>
+    </section>
+  </main>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const LESSONS = [
+    { en:"This is my grandmother.", ja:"これは わたしの おばあさん です。", grammar:"This is = これは ... です", key:"my = わたしの" },
+    { en:"He is my uncle.", ja:"かれは わたしの おじさん です。", grammar:"He is = かれは ... です", key:"uncle = おじさん" },
+    { en:"She is my sister.", ja:"かのじょは わたしの しまい です。", grammar:"She is = かのじょは ... です", key:"sister = しまい" },
+    { en:"This is her husband.", ja:"これは かのじょの だんなさん です。", grammar:"her = かのじょの", key:"husband = だんなさん" },
+    { en:"She is my wife.", ja:"かのじょは わたしの おくさん です。", grammar:"She is = かのじょは ... です", key:"wife = おくさん" },
+    { en:"He is my brother.", ja:"かれは わたしの きょうだい です。", grammar:"He is = かれは ... です", key:"brother = きょうだい" },
+    { en:"This is my niece.", ja:"これは わたしの めい です。", grammar:"This is = これは ... です", key:"niece = めい" },
+    { en:"This is my friend.", ja:"これは わたしの ともだち です。", grammar:"my = わたしの", key:"friend = ともだち" },
+    { en:"He is my cousin.", ja:"かれは わたしの いとこ です。", grammar:"He is = かれは ... です", key:"cousin = いとこ" },
+    { en:"This is my grandson.", ja:"これは わたしの まごの おとこのこ です。", grammar:"This is = これは ... です", key:"grandson = まごの おとこのこ" },
+    { en:"This is his uncle.", ja:"これは かれの おじさん です。", grammar:"his = かれの", key:"uncle = おじさん" },
+    { en:"She is my aunt.", ja:"かのじょは わたしの おばさん です。", grammar:"She is = かのじょは ... です", key:"aunt = おばさん" },
+    { en:"She is my daughter.", ja:"かのじょは わたしの むすめ です。", grammar:"She is = かのじょは ... です", key:"daughter = むすめ" },
+    { en:"He is my grandfather.", ja:"かれは わたしの おじいさん です。", grammar:"He is = かれは ... です", key:"grandfather = おじいさん" },
+    { en:"She is my mother.", ja:"かのじょは わたしの おかあさん です。", grammar:"She is = かのじょは ... です", key:"mother = おかあさん" }
+  ];
+
+  const $ = id => document.getElementById(id);
+  const scene = $("scene");
+  const ctx = scene.getContext("2d");
+  const state = {
+    index:0,
+    score:0,
+    streak:0,
+    cleared:0,
+    best:Number(localStorage.getItem("trainSentenceBest") || 0),
+    mode:"calm",
+    cars:[],
+    placed:[],
+    selectedId:null,
+    locked:false,
+    sound:true,
+    drag:null,
+    ignoreClick:false,
+    movers:{},
+    lastFrame:performance.now(),
+    messageTimer:0,
+    startedAt:performance.now(),
+    hints:0
+  };
+
+  const modeInfo = {
+    calm:{ label:"ゆっくり", hint:"タップでも うごかせます", delay:1180, moving:false },
+    quick:{ label:"テンポ", hint:"正解すると すぐ次へ すすみます", delay:760, moving:false },
+    super:{ label:"スーパーハード", hint:"うごく車両を つかまえよう", delay:680, moving:true }
+  };
+
+  function wordsFor(sentence){
+    return sentence.split(" ").map((word,i,arr)=>({
+      id:`${Date.now()}-${i}-${Math.random().toString(16).slice(2)}`,
+      text:word,
+      order:i,
+      color:i % 5,
+      final:i===arr.length-1
+    }));
+  }
+
+  function shuffle(list){
+    const a=list.slice();
+    for(let i=a.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [a[i],a[j]]=[a[j],a[i]];
+    }
+    return a;
+  }
+
+  function loadLesson(){
+    const lesson=LESSONS[state.index];
+    state.locked=false;
+    state.selectedId=null;
+    state.drag=null;
+    state.movers={};
+    state.hints=0;
+    state.cars=shuffle(wordsFor(lesson.en));
+    state.placed=Array(lesson.en.split(" ").length).fill(null);
+    $("finish").classList.remove("show");
+    $("levelNow").textContent=state.index+1;
+    $("levelMax").textContent=LESSONS.length;
+    $("meaning").textContent=lesson.ja;
+    $("grammarChip").textContent=lesson.grammar;
+    $("tip").textContent=`${lesson.key}。単語の でんしゃを ならべよう。`;
+    $("modeChip").textContent=modeInfo[state.mode].label;
+    $("modeChip").classList.toggle("hot", state.mode==="super");
+    $("modeHint").textContent=modeInfo[state.mode].hint;
+    $("slots").style.setProperty("--slot-count", state.placed.length);
+    $("slots").classList.remove("launch");
+    $("sentenceShot").classList.remove("fire");
+    render();
+    speak(lesson.en, true);
+  }
+
+  function render(){
+    $("score").textContent=state.score;
+    $("streak").textContent=state.streak;
+    $("cleared").textContent=state.cleared;
+    $("best").textContent=state.best;
+    $("soundBtn").textContent=state.sound ? "音あり" : "音なし";
+
+    const slots=$("slots");
+    slots.innerHTML="";
+    state.placed.forEach((id,i)=>{
+      const slot=document.createElement("div");
+      slot.className="slot";
+      slot.dataset.slot=String(i);
+      slot.dataset.num=String(i+1);
+      if(id){
+        const car=state.cars.find(c=>c.id===id);
+        slot.appendChild(carElement(car));
+        if(car.order===i) slot.classList.add("goodPlace");
+      }
+      slots.appendChild(slot);
+    });
+
+    const yard=$("yard");
+    yard.className=modeInfo[state.mode].moving ? "yard moving" : "yard";
+    yard.innerHTML="";
+    unplacedCars().forEach(car=>yard.appendChild(carElement(car)));
+    updateModeButtons();
+    initMovingCars();
+  }
+
+  function carElement(car){
+    const el=document.createElement("div");
+    el.className=`wordCar color${car.color}`;
+    if(state.selectedId===car.id) el.classList.add("selected");
+    el.dataset.id=car.id;
+    el.innerHTML=`<span class="coupler"></span><span>${escapeHtml(car.text)}</span>`;
+    return el;
+  }
+
+  function escapeHtml(value){
+    return String(value).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  }
+
+  function unplacedCars(){
+    const placed=new Set(state.placed.filter(Boolean));
+    return state.cars.filter(c=>!placed.has(c.id));
+  }
+
+  function slotOf(id){
+    return state.placed.findIndex(value=>value===id);
+  }
+
+  function placeCar(id, targetSlot){
+    if(state.locked || targetSlot < 0 || targetSlot >= state.placed.length) return;
+    const oldSlot=slotOf(id);
+    const occupant=state.placed[targetSlot];
+    if(oldSlot===targetSlot) return;
+    if(oldSlot!==-1) state.placed[oldSlot]=null;
+    state.placed[targetSlot]=id;
+    if(occupant && occupant!==id && oldSlot!==-1) state.placed[oldSlot]=occupant;
+    state.selectedId=null;
+    render();
+    checkFilled();
+  }
+
+  function moveToYard(id){
+    if(state.locked) return;
+    const oldSlot=slotOf(id);
+    if(oldSlot!==-1) state.placed[oldSlot]=null;
+    state.selectedId=null;
+    render();
+  }
+
+  function checkFilled(){
+    if(!state.placed.every(Boolean)) return;
+    const ok=state.placed.every((id,i)=>{
+      const car=state.cars.find(c=>c.id===id);
+      return car && car.order===i;
+    });
+    if(ok) correct();
+    else wrong();
+  }
+
+  function correct(){
+    const lesson=LESSONS[state.index];
+    state.locked=true;
+    state.streak++;
+    state.cleared++;
+    const base=100 + lesson.en.split(" ").length * 18;
+    const modeBonus=state.mode==="super" ? 90 : state.mode==="quick" ? 35 : 0;
+    const streakBonus=Math.min(180,state.streak*18);
+    const hintPenalty=state.hints*20;
+    const gain=Math.max(40,base+modeBonus+streakBonus-hintPenalty);
+    state.score += gain;
+    if(state.score>state.best){
+      state.best=state.score;
+      localStorage.setItem("trainSentenceBest",String(state.best));
+    }
+    render();
+    showMessage(`しゅっぱつ！ +${gain}`,"good",760);
+    fireSentence(lesson.en);
+    speak(lesson.en, false);
+    setTimeout(()=>{
+      state.index++;
+      if(state.index>=LESSONS.length) finish();
+      else loadLesson();
+    }, modeInfo[state.mode].delay);
+  }
+
+  function wrong(){
+    state.streak=0;
+    render();
+    $("railWrap").classList.add("shake");
+    setTimeout(()=>$("railWrap").classList.remove("shake"),280);
+    showMessage("じゅんばんを みなおそう","bad",760);
+    const firstWrong=state.placed.findIndex((id,i)=>{
+      const car=state.cars.find(c=>c.id===id);
+      return car && car.order!==i;
+    });
+    if(firstWrong>=0){
+      $("tip").textContent=`${firstWrong+1}ばんめの ことばを よく見てみよう。`;
+    }
+  }
+
+  function fireSentence(text){
+    const shot=$("sentenceShot");
+    shot.textContent=text;
+    shot.classList.remove("fire");
+    $("slots").classList.add("launch");
+    requestAnimationFrame(()=>shot.classList.add("fire"));
+  }
+
+  function finish(){
+    state.locked=true;
+    $("finalScore").textContent=state.score;
+    const modeLabel=modeInfo[state.mode].label;
+    $("finalText").textContent=`${modeLabel}で ${state.cleared}この英文を しゅっぱつ させました。`;
+    $("finalTip").textContent=state.mode==="super"
+      ? "うごく車両を つかまえながら、英語のじゅんばんも よく見られました。"
+      : "つぎは テンポや スーパーハードでも やってみよう。";
+    $("finish").classList.add("show");
+    showMessage("ぜんぶ クリア！","good",1100);
+  }
+
+  function showMessage(text,kind,duration){
+    const el=$("message");
+    el.textContent=text;
+    el.className=`message show ${kind || ""}`;
+    clearTimeout(state.messageTimer);
+    state.messageTimer=setTimeout(()=>el.classList.remove("show"), duration || 900);
+  }
+
+  function setMode(mode){
+    state.mode=mode;
+    if(!state.locked){
+      render();
+      $("modeChip").textContent=modeInfo[state.mode].label;
+      $("modeChip").classList.toggle("hot", state.mode==="super");
+      $("modeHint").textContent=modeInfo[state.mode].hint;
+    }
+  }
+
+  function updateModeButtons(){
+    $("calmBtn").classList.toggle("selected",state.mode==="calm");
+    $("quickBtn").classList.toggle("selected",state.mode==="quick");
+    $("superBtn").classList.toggle("selected",state.mode==="super");
+    $("helpText").textContent = state.mode==="super"
+      ? "スーパーハードでは、もんだいが進むほど 下の車両が速く動きます。つかまえて 上へ おこう。"
+      : "車両をドラッグして ならべます。ぜんぶ入ると すぐに こたえあわせをします。";
+  }
+
+  function hint(){
+    if(state.locked) return;
+    const targetIndex=state.placed.findIndex((id,i)=>{
+      const car=state.cars.find(c=>c.id===id);
+      return !id || !car || car.order!==i;
+    });
+    if(targetIndex<0) return;
+    const needed=state.cars.find(c=>c.order===targetIndex);
+    state.hints++;
+    placeCar(needed.id,targetIndex);
+    $("tip").textContent=`${targetIndex+1}ばんめは ${needed.text} です。`;
+  }
+
+  function restart(){
+    state.index=0;
+    state.score=0;
+    state.streak=0;
+    state.cleared=0;
+    loadLesson();
+  }
+
+  function speak(text, soft){
+    if(!state.sound || !("speechSynthesis" in window)) return;
+    try{
+      window.speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(text);
+      u.lang="en-US";
+      u.rate=soft ? .82 : .9;
+      u.pitch=1.04;
+      u.volume=soft ? .55 : .95;
+      const voices=window.speechSynthesis.getVoices();
+      const picked=voices.find(v=>/en[-_]US/i.test(v.lang)) || voices.find(v=>/^en/i.test(v.lang));
+      if(picked) u.voice=picked;
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+
+  $("playfield").addEventListener("click", event=>{
+    if(state.ignoreClick){state.ignoreClick=false;return;}
+    if(state.locked) return;
+    const carEl=event.target.closest(".wordCar");
+    const slotEl=event.target.closest(".slot");
+    if(carEl){
+      const id=carEl.dataset.id;
+      state.selectedId = state.selectedId===id ? null : id;
+      render();
+      return;
+    }
+    if(slotEl){
+      const slot=Number(slotEl.dataset.slot);
+      if(state.selectedId) placeCar(state.selectedId, slot);
+      else if(state.placed[slot]){
+        state.selectedId=state.placed[slot];
+        render();
+      }
+    }
+  });
+
+  document.addEventListener("pointerdown", event=>{
+    if(state.locked) return;
+    const carEl=event.target.closest(".wordCar");
+    if(!carEl || carEl.classList.contains("ghost")) return;
+    const rect=carEl.getBoundingClientRect();
+    state.drag={
+      id:carEl.dataset.id,
+      startX:event.clientX,
+      startY:event.clientY,
+      offsetX:event.clientX-rect.left,
+      offsetY:event.clientY-rect.top,
+      source:carEl,
+      ghost:null,
+      moved:false
+    };
+    carEl.setPointerCapture?.(event.pointerId);
+  },{passive:false});
+
+  document.addEventListener("pointermove", event=>{
+    const drag=state.drag;
+    if(!drag) return;
+    const dx=event.clientX-drag.startX;
+    const dy=event.clientY-drag.startY;
+    if(!drag.moved && Math.hypot(dx,dy)>7){
+      drag.moved=true;
+      drag.ghost=drag.source.cloneNode(true);
+      drag.ghost.classList.add("ghost");
+      drag.ghost.classList.remove("selected");
+      drag.ghost.style.width=drag.source.offsetWidth+"px";
+      drag.ghost.style.height=drag.source.offsetHeight+"px";
+      document.body.appendChild(drag.ghost);
+      drag.source.classList.add("dragSource");
+      state.selectedId=null;
+      event.preventDefault();
+    }
+    if(drag.moved && drag.ghost){
+      drag.ghost.style.transform=`translate(${event.clientX-drag.offsetX}px,${event.clientY-drag.offsetY}px)`;
+      event.preventDefault();
+    }
+  },{passive:false});
+
+  document.addEventListener("pointerup", event=>{
+    const drag=state.drag;
+    if(!drag) return;
+    if(drag.moved){
+      state.ignoreClick=true;
+      if(drag.ghost) drag.ghost.remove();
+      drag.source.classList.remove("dragSource");
+      const target=document.elementFromPoint(event.clientX,event.clientY);
+      const slotEl=target && target.closest(".slot");
+      if(slotEl) placeCar(drag.id,Number(slotEl.dataset.slot));
+      else if(target && target.closest(".yard")) moveToYard(drag.id);
+      else render();
+    }
+    state.drag=null;
+  });
+
+  document.addEventListener("keydown", event=>{
+    if(event.key===" "){event.preventDefault();speak(LESSONS[state.index]?.en || "", false);}
+    if(event.key==="Backspace" && state.selectedId){event.preventDefault();moveToYard(state.selectedId);}
+    if(event.key>="1" && event.key<="9" && state.selectedId){
+      const slot=Number(event.key)-1;
+      if(slot<state.placed.length) placeCar(state.selectedId, slot);
+    }
+  });
+
+  $("readBtn").onclick=()=>speak(LESSONS[state.index]?.en || "", false);
+  $("soundBtn").onclick=()=>{state.sound=!state.sound;if(!state.sound && "speechSynthesis" in window) window.speechSynthesis.cancel();render();};
+  $("hintBtn").onclick=hint;
+  $("shuffleBtn").onclick=()=>{if(!state.locked){state.cars=shuffle(state.cars);state.movers={};render();}};
+  $("calmBtn").onclick=()=>setMode("calm");
+  $("quickBtn").onclick=()=>setMode("quick");
+  $("superBtn").onclick=()=>setMode("super");
+  $("againBtn").onclick=restart;
+
+  function initMovingCars(){
+    if(!modeInfo[state.mode].moving) return;
+    const yard=$("yard");
+    const rect=yard.getBoundingClientRect();
+    unplacedCars().forEach((car,i)=>{
+      const el=yard.querySelector(`[data-id="${CSS.escape(car.id)}"]`);
+      if(!el) return;
+      const w=el.offsetWidth || 100;
+      const h=el.offsetHeight || 54;
+      if(!state.movers[car.id]){
+        state.movers[car.id]={
+          x:12 + (i*113) % Math.max(80,rect.width-w-24),
+          y:12 + (i*61) % Math.max(60,rect.height-h-24),
+          vx:(Math.random()<.5?-1:1)*(36+state.index*6+Math.random()*28),
+          vy:(Math.random()<.5?-1:1)*(24+state.index*4+Math.random()*18)
+        };
+      }
+      const m=state.movers[car.id];
+      m.x=Math.max(6,Math.min(rect.width-w-8,m.x));
+      m.y=Math.max(6,Math.min(rect.height-h-8,m.y));
+      el.style.transform=`translate(${m.x}px,${m.y}px)`;
+    });
+  }
+
+  function updateMoving(dt){
+    if(!modeInfo[state.mode].moving || state.locked) return;
+    const yard=$("yard");
+    const rect=yard.getBoundingClientRect();
+    if(rect.width<40 || rect.height<40) return;
+    unplacedCars().forEach(car=>{
+      if(state.drag && state.drag.id===car.id) return;
+      const el=yard.querySelector(`[data-id="${CSS.escape(car.id)}"]`);
+      const m=state.movers[car.id];
+      if(!el || !m) return;
+      const w=el.offsetWidth || 100;
+      const h=el.offsetHeight || 54;
+      const levelBoost=1 + state.index*.04;
+      m.x += m.vx * dt * levelBoost;
+      m.y += m.vy * dt * levelBoost;
+      if(m.x<6){m.x=6;m.vx=Math.abs(m.vx);}
+      if(m.y<6){m.y=6;m.vy=Math.abs(m.vy);}
+      if(m.x>rect.width-w-8){m.x=rect.width-w-8;m.vx=-Math.abs(m.vx);}
+      if(m.y>rect.height-h-8){m.y=rect.height-h-8;m.vy=-Math.abs(m.vy);}
+      el.style.transform=`translate(${m.x}px,${m.y}px)`;
+    });
+  }
+
+  function resizeScene(){
+    const dpr=Math.max(1,Math.min(2,window.devicePixelRatio || 1));
+    scene.width=Math.floor(innerWidth*dpr);
+    scene.height=Math.floor(innerHeight*dpr);
+    scene.style.width=innerWidth+"px";
+    scene.style.height=innerHeight+"px";
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  function drawScene(time){
+    const w=innerWidth;
+    const h=innerHeight;
+    const t=time*.001;
+    const sky=ctx.createLinearGradient(0,0,0,h);
+    sky.addColorStop(0,"#7dd3fc");
+    sky.addColorStop(.58,"#bae6fd");
+    sky.addColorStop(1,"#dcfce7");
+    ctx.fillStyle=sky;
+    ctx.fillRect(0,0,w,h);
+
+    ctx.fillStyle="#fef3c7";
+    ctx.beginPath();
+    ctx.arc(w*.82, h*.14, Math.max(38,w*.045), 0, Math.PI*2);
+    ctx.fill();
+
+    drawCloud((t*22)% (w+220)-120,h*.16,1.0);
+    drawCloud((t*14+260)% (w+260)-140,h*.27,.72);
+    drawCloud((t*18+560)% (w+280)-160,h*.11,.58);
+
+    drawHill("#86efac",h*.58, .85, 0);
+    drawHill("#4ade80",h*.66, 1.12, 90);
+    drawHill("#22c55e",h*.75, 1.34, 180);
+
+    drawFamilyBoard(w,h,t);
+    drawStation(w,h,t);
+    drawTinyTrain(w,h,t);
+  }
+
+  function drawCloud(x,y,s){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.scale(s,s);
+    ctx.fillStyle="rgba(255,255,255,.78)";
+    for(const c of [[0,15,32], [34,4,40], [78,14,30], [110,20,24]]){
+      ctx.beginPath();
+      ctx.arc(c[0],c[1],c[2],0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.fillRect(-8,18,128,26);
+    ctx.restore();
+  }
+
+  function drawHill(color,base,scale,phase){
+    const w=innerWidth;
+    const h=innerHeight;
+    ctx.fillStyle=color;
+    ctx.beginPath();
+    ctx.moveTo(0,h);
+    for(let x=0;x<=w+30;x+=30){
+      const y=base + Math.sin((x+phase)*.008)*24*scale + Math.sin((x+phase)*.021)*10*scale;
+      ctx.lineTo(x,y);
+    }
+    ctx.lineTo(w,h);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawFamilyBoard(w,h,t){
+    const x=Math.max(18,w*.055);
+    const y=h*.48;
+    const bw=Math.min(220,w*.24);
+    const bh=118;
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.fillStyle="rgba(255,253,246,.88)";
+    roundRect(0,0,bw,bh,8);
+    ctx.fill();
+    ctx.strokeStyle="rgba(30,58,138,.22)";
+    ctx.lineWidth=3;
+    ctx.stroke();
+    ctx.fillStyle="#1d4ed8";
+    ctx.font="900 15px system-ui,-apple-system,sans-serif";
+    ctx.fillText("family words",14,24);
+    const people=[
+      [42,70,"#f97316",1.0],
+      [86,64,"#06b6d4",.88],
+      [128,70,"#7c3aed",1.0],
+      [170,66,"#16a34a",.82]
+    ];
+    people.forEach(p=>drawPerson(p[0],p[1]+Math.sin(t*2+p[0])*.8,p[2],p[3]));
+    ctx.restore();
+  }
+
+  function drawPerson(x,y,color,s){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.scale(s,s);
+    ctx.fillStyle="#fde68a";
+    ctx.beginPath();
+    ctx.arc(0,-24,13,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle=color;
+    roundRect(-17,-9,34,42,8);
+    ctx.fill();
+    ctx.strokeStyle="rgba(15,23,42,.28)";
+    ctx.lineWidth=3;
+    ctx.beginPath();
+    ctx.moveTo(-10,34);
+    ctx.lineTo(-15,54);
+    ctx.moveTo(10,34);
+    ctx.lineTo(15,54);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawStation(w,h,t){
+    const base=h*.82;
+    ctx.fillStyle="#92400e";
+    ctx.fillRect(0,base,w,h-base);
+    ctx.fillStyle="#fef3c7";
+    ctx.fillRect(0,base-20,w,22);
+    ctx.fillStyle="#57534e";
+    ctx.fillRect(0,base+18,w,7);
+    ctx.fillRect(0,base+45,w,7);
+    ctx.strokeStyle="rgba(87,83,78,.75)";
+    ctx.lineWidth=7;
+    for(let x=-40;x<w+80;x+=70){
+      ctx.beginPath();
+      ctx.moveTo(x,base+58);
+      ctx.lineTo(x+32,base+12);
+      ctx.stroke();
+    }
+    const sx=w*.66, sy=base-118;
+    ctx.fillStyle="#0f766e";
+    roundRect(sx,sy,190,88,8);
+    ctx.fill();
+    ctx.fillStyle="#fef3c7";
+    ctx.fillRect(sx+12,sy+16,164,28);
+    ctx.fillStyle="#0f172a";
+    ctx.font="1000 19px system-ui,-apple-system,sans-serif";
+    ctx.fillText("WORD STATION",sx+23,sy+37);
+  }
+
+  function drawTinyTrain(w,h,t){
+    const y=h*.76;
+    const x=((t*54)%(w+260))-220;
+    ctx.save();
+    ctx.translate(x,y);
+    const colors=["#ef4444","#06b6d4","#facc15","#16a34a"];
+    colors.forEach((color,i)=>{
+      ctx.fillStyle=color;
+      roundRect(i*54,0,48,30,7);
+      ctx.fill();
+      ctx.fillStyle="rgba(255,255,255,.72)";
+      ctx.fillRect(i*54+9,7,15,10);
+      ctx.fillRect(i*54+28,7,12,10);
+      ctx.fillStyle="#111827";
+      ctx.beginPath();ctx.arc(i*54+12,33,6,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(i*54+38,33,6,0,Math.PI*2);ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  function roundRect(x,y,w,h,r){
+    const rr=Math.min(r,w/2,h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr,y);
+    ctx.arcTo(x+w,y,x+w,y+h,rr);
+    ctx.arcTo(x+w,y+h,x,y+h,rr);
+    ctx.arcTo(x,y+h,x,y,rr);
+    ctx.arcTo(x,y,x+w,y,rr);
+    ctx.closePath();
+  }
+
+  function frame(now){
+    const dt=Math.min(.05,(now-state.lastFrame)/1000);
+    state.lastFrame=now;
+    drawScene(now);
+    updateMoving(dt);
+    requestAnimationFrame(frame);
+  }
+
+  window.addEventListener("resize",()=>{resizeScene();render();});
+  if("speechSynthesis" in window){
+    window.speechSynthesis.onvoiceschanged=()=>{};
+  }
+  resizeScene();
+  loadLesson();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
