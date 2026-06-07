@@ -420,6 +420,11 @@
     }
     .rewardBreak.show{display:grid}
     .rewardBreak.dark{background:#020617}
+    .rewardBreak.fadeRest{
+      background:rgba(2,6,23,0);
+      transition:background 2s ease;
+    }
+    .rewardBreak.fadeRest.dim{background:#020617}
     .rewardCard{
       width:min(560px,92vw);
       min-height:320px;
@@ -434,6 +439,15 @@
       box-shadow:var(--shadow);
       border:3px solid rgba(37,99,235,.18);
     }
+    .rewardBreak.fadeRest .rewardCard{
+      transition:background 2s ease,color 2s ease,border-color 2s ease,box-shadow 2s ease;
+    }
+    .rewardBreak.fadeRest.dim .rewardCard{
+      background:rgba(15,23,42,.9);
+      color:#e0f2fe;
+      border-color:rgba(147,197,253,.2);
+      box-shadow:none;
+    }
     .rewardBreak.dark .rewardCard{
       background:transparent;
       color:#e0f2fe;
@@ -441,6 +455,7 @@
       box-shadow:none;
     }
     .rewardLabel{font-size:14px;font-weight:1000;color:#2563eb}
+    .rewardBreak.fadeRest.dim .rewardLabel{color:#93c5fd}
     .rewardBreak.dark .rewardLabel{color:#93c5fd}
     .rewardPicture{
       width:min(340px,82vw);
@@ -465,6 +480,7 @@
     .rewardBreak.dark .rewardPicture{display:none}
     .rewardText{font-size:clamp(24px,5vw,40px);font-weight:1000;line-height:1.18;margin:0}
     .rewardSub{font-size:17px;font-weight:900;color:#34465f;line-height:1.5;margin:0}
+    .rewardBreak.fadeRest.dim .rewardSub{color:#bfdbfe}
     .rewardBreak.dark .rewardSub{color:#bfdbfe}
     .sentenceShot{
       position:absolute;
@@ -662,6 +678,8 @@
     { en:"She is my mother.", ja:"かのじょは わたしの おかあさん です。", grammar:"She is = かのじょは ... です", key:"mother = おかあさん" }
   ];
   const REST_EVERY = 3;
+  const REST_FADE_MS = 2000;
+  const REST_MODE_MS = 6000;
   const QUESTION_ROUND_KEY = "trainSentenceQuestionRoundV1";
 
   const $ = id => document.getElementById(id);
@@ -777,7 +795,7 @@
     $("slots").classList.remove("launch");
     $("sentenceShot").classList.remove("fire");
     render();
-    speak(lesson.en, true);
+    speakLessonPrompt(lesson);
   }
 
   function render(){
@@ -869,12 +887,18 @@
     if(state.locked || targetSlot < 0 || targetSlot >= state.placed.length) return;
     const oldSlot=slotOf(id);
     const occupant=state.placed[targetSlot];
+    const placedCar=state.cars.find(c=>c.id===id);
     if(oldSlot===targetSlot) return;
     if(oldSlot!==-1) state.placed[oldSlot]=null;
     state.placed[targetSlot]=id;
     if(occupant && occupant!==id && oldSlot!==-1) state.placed[oldSlot]=occupant;
     state.selectedId=null;
+    const completeCorrect=state.placed.every(Boolean) && state.placed.every((placedId,i)=>{
+      const car=state.cars.find(c=>c.id===placedId);
+      return car && car.order===i;
+    });
     render();
+    if(placedCar && placedCar.order===targetSlot && !completeCorrect) speakPlacedWord(placedCar.text);
     checkFilled();
   }
 
@@ -916,19 +940,22 @@
     render();
     showMessage(unlockedMode ? `${unlockedMode} かいほう！` : `しゅっぱつ！ +${gain}`,"good",unlockedMode ? 1160 : 760);
     fireSentence(lesson.en);
-    speakReward(lesson);
+    speakSentenceLaunch(lesson);
     if(state.mode!=="calm" && state.hintModeForLesson===state.mode) state.hintModeForLesson="";
     const nextIndex=state.index+1;
     const shouldRest = nextIndex % REST_EVERY === 0 || nextIndex >= state.lessons.length;
-    const advanceDelay = shouldRest ? modeInfo[state.mode].delay : Math.max(modeInfo[state.mode].delay, 2300);
+    const advanceDelay = Math.max(modeInfo[state.mode].delay, 2600);
+    if(shouldRest){
+      state.index=nextIndex;
+      showRewardBreak(lesson, ()=>{
+        if(state.index>=state.lessons.length) finish();
+        else loadLesson();
+      });
+      return;
+    }
     setTimeout(()=>{
       state.index=nextIndex;
-      if(shouldRest){
-        showRewardBreak(lesson, ()=>{
-          if(state.index>=state.lessons.length) finish();
-          else loadLesson();
-        });
-      }else if(state.index>=state.lessons.length){
+      if(state.index>=state.lessons.length){
         finish();
       }else{
         loadLesson();
@@ -983,16 +1010,15 @@
     const overlay=$("rewardBreak");
     const rest=nextRestPrompt();
     const artStyle=rewardArtStyle(lesson);
-    const cardMs=2300;
-    const darkRestMs=7000;
-    overlay.className="rewardBreak show";
+    overlay.className="rewardBreak show fadeRest";
     overlay.innerHTML=`
       <div class="rewardCard">
         <div class="rewardLabel">ごほうび えカード</div>
         <div class="rewardPicture artPanel" style="${artStyle}" aria-hidden="true"></div>
-        <p class="rewardText">${escapeHtml(lesson.en)}</p>
-        <p class="rewardSub">${escapeHtml(lesson.ja)}</p>
+        <p class="rewardText">${escapeHtml(lesson.ja)}</p>
+        <p class="rewardSub">${escapeHtml(lesson.en)}</p>
       </div>`;
+    requestAnimationFrame(()=>overlay.classList.add("dim"));
     setTimeout(()=>{
       overlay.className="rewardBreak show dark";
       overlay.innerHTML=`
@@ -1001,12 +1027,12 @@
           <p class="rewardText">${escapeHtml(rest.title)}</p>
           <p class="rewardSub">${escapeHtml(rest.body)}</p>
         </div>`;
-    },cardMs);
+    },REST_FADE_MS);
     setTimeout(()=>{
       overlay.className="rewardBreak";
       overlay.innerHTML="";
       onDone();
-    },cardMs+darkRestMs);
+    },REST_FADE_MS+REST_MODE_MS);
   }
 
   function rewardArtStyle(lesson){
@@ -1032,15 +1058,6 @@
     }
     nextRestPrompt.last=prompt.title;
     return prompt;
-  }
-
-  function rewardIcon(word){
-    const icons={
-      grandmother:"👵", grandfather:"👴", grandson:"👦", husband:"👨", wife:"👩",
-      mother:"👩‍👧", daughter:"👧", sister:"👧", brother:"👦", friend:"😊😊",
-      cousin:"👦👧", uncle:"👨", aunt:"👩", niece:"👧"
-    };
-    return icons[word] || "😊";
   }
 
   function updateUnlocks(){
@@ -1159,29 +1176,43 @@
   function makeUtterance(text, soft, lang){
     const u=new SpeechSynthesisUtterance(text);
     u.lang=lang;
-    u.rate=lang==="ja-JP" ? .82 : (soft ? .82 : .9);
+    u.rate=lang==="ja-JP" ? (soft ? .72 : .82) : (soft ? .74 : .9);
     u.pitch=1.04;
-    u.volume=soft ? .55 : .95;
+    u.volume=soft ? .68 : .95;
     const picked=pickVoice(lang);
     if(picked) u.voice=picked;
     return u;
   }
 
-  function speak(text, soft, lang="en-US"){
+  function speakSequence(items){
     if(!state.sound || !("speechSynthesis" in window)) return;
     try{
       window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(makeUtterance(text, soft, lang));
+      items.forEach(item=>{
+        window.speechSynthesis.speak(makeUtterance(item.text, item.soft, item.lang));
+      });
     }catch(e){}
   }
 
-  function speakReward(lesson){
-    if(!state.sound || !("speechSynthesis" in window)) return;
-    try{
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(makeUtterance(lesson.ja, false, "ja-JP"));
-      window.speechSynthesis.speak(makeUtterance(lesson.en, false, "en-US"));
-    }catch(e){}
+  function speak(text, soft, lang="en-US"){
+    speakSequence([{ text, soft, lang }]);
+  }
+
+  function speakLessonPrompt(lesson){
+    if(!lesson) return;
+    speakSequence([
+      { text:lesson.ja, soft:true, lang:"ja-JP" },
+      { text:lesson.en, soft:true, lang:"en-US" }
+    ]);
+  }
+
+  function speakPlacedWord(word){
+    speak(String(word || "").replace(/[.?!]+$/,""), true, "en-US");
+  }
+
+  function speakSentenceLaunch(lesson){
+    if(!lesson) return;
+    speak(lesson.en, true, "en-US");
   }
 
   $("playfield").addEventListener("click", event=>{
@@ -1263,7 +1294,7 @@
   });
 
   document.addEventListener("keydown", event=>{
-    if(event.key===" "){event.preventDefault();speak(currentLesson()?.en || "", false);}
+    if(event.key===" "){event.preventDefault();speakLessonPrompt(currentLesson());}
     if(event.key==="Backspace" && state.selectedId){event.preventDefault();moveToYard(state.selectedId);}
     if(event.key>="1" && event.key<="9" && state.selectedId){
       const slot=Number(event.key)-1;
@@ -1271,7 +1302,7 @@
     }
   });
 
-  $("readBtn").onclick=()=>speak(currentLesson()?.en || "", false);
+  $("readBtn").onclick=()=>speakLessonPrompt(currentLesson());
   $("soundBtn").onclick=()=>{state.sound=!state.sound;if(!state.sound && "speechSynthesis" in window) window.speechSynthesis.cancel();render();};
   $("hintBtn").onclick=hint;
   $("shuffleBtn").onclick=()=>{if(!state.locked){state.cars=shuffle(state.cars);state.movers={};render();}};
