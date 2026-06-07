@@ -935,7 +935,6 @@
           <p class="rewardText">${escapeHtml(rest.title)}</p>
           <p class="rewardSub">${escapeHtml(rest.body)}</p>
         </div>`;
-      speakJa(`${rest.title}。${rest.body}`, true);
     },cardMs);
     setTimeout(()=>{
       overlay.className="rewardBreak";
@@ -1072,22 +1071,6 @@
       u.volume=soft ? .55 : .95;
       const voices=window.speechSynthesis.getVoices();
       const picked=voices.find(v=>/en[-_]US/i.test(v.lang)) || voices.find(v=>/^en/i.test(v.lang));
-      if(picked) u.voice=picked;
-      window.speechSynthesis.speak(u);
-    }catch(e){}
-  }
-
-  function speakJa(text, soft){
-    if(!state.sound || !("speechSynthesis" in window)) return;
-    try{
-      window.speechSynthesis.cancel();
-      const u=new SpeechSynthesisUtterance(text);
-      u.lang="ja-JP";
-      u.rate=soft ? .88 : .96;
-      u.pitch=1.04;
-      u.volume=soft ? .72 : .9;
-      const voices=window.speechSynthesis.getVoices();
-      const picked=voices.find(v=>/^ja[-_]/i.test(v.lang)) || voices.find(v=>/日本|japan|kyoko|nanami|haruka/i.test(v.name));
       if(picked) u.voice=picked;
       window.speechSynthesis.speak(u);
     }catch(e){}
