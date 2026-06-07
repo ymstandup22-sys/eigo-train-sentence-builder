@@ -707,6 +707,7 @@
     movers:{},
     lastFrame:performance.now(),
     messageTimer:0,
+    launchAfterWordAt:0,
     startedAt:performance.now(),
     hints:0
   };
@@ -779,6 +780,7 @@
     state.drag=null;
     state.movers={};
     state.hints=0;
+    state.launchAfterWordAt=0;
     state.cars=shuffle(wordsFor(lesson.en));
     state.placed=Array(lesson.en.split(" ").length).fill(null);
     $("finish").classList.remove("show");
@@ -898,7 +900,10 @@
       return car && car.order===i;
     });
     render();
-    if(placedCar && placedCar.order===targetSlot && !completeCorrect) speakPlacedWord(placedCar.text);
+    if(placedCar && placedCar.order===targetSlot){
+      speakPlacedWord(placedCar.text);
+      state.launchAfterWordAt=completeCorrect ? performance.now()+780 : 0;
+    }
     checkFilled();
   }
 
@@ -939,6 +944,12 @@
     }
     render();
     showMessage(unlockedMode ? `${unlockedMode} かいほう！` : `しゅっぱつ！ +${gain}`,"good",unlockedMode ? 1160 : 760);
+    const launchDelay=Math.max(0,(state.launchAfterWordAt || 0)-performance.now());
+    state.launchAfterWordAt=0;
+    setTimeout(()=>launchCompletedSentence(lesson), launchDelay);
+  }
+
+  function launchCompletedSentence(lesson){
     fireSentence(lesson.en);
     speakSentenceLaunch(lesson);
     if(state.mode!=="calm" && state.hintModeForLesson===state.mode) state.hintModeForLesson="";
