@@ -596,6 +596,8 @@
     cleared:0,
     best:Number(localStorage.getItem("trainSentenceBest") || 0),
     mode:"calm",
+    unlocks:{ quick:false, super:false },
+    modeClears:{ calm:0, quick:0, super:0 },
     cars:[],
     placed:[],
     selectedId:null,
@@ -614,6 +616,11 @@
     calm:{ label:"ゆっくり", hint:"車両は とまっています", delay:1180, moving:false, speed:0, chaos:0 },
     quick:{ label:"テンポ", hint:"うごく車両を つかまえよう", delay:760, moving:true, speed:1, chaos:0 },
     super:{ label:"スーパーハード", hint:"速くて きゅうに まがります", delay:680, moving:true, speed:1.9, chaos:1 }
+  };
+
+  const unlockRules = {
+    quick:{ mode:"calm", count:2, label:"テンポ" },
+    super:{ mode:"quick", count:4, label:"スーパーハード" }
   };
 
   function wordsFor(sentence){
@@ -783,12 +790,14 @@
     const hintPenalty=state.hints*20;
     const gain=Math.max(40,base+modeBonus+streakBonus-hintPenalty);
     state.score += gain;
+    state.modeClears[state.mode]++;
+    const unlockedMode=updateUnlocks();
     if(state.score>state.best){
       state.best=state.score;
       localStorage.setItem("trainSentenceBest",String(state.best));
     }
     render();
-    showMessage(`しゅっぱつ！ +${gain}`,"good",760);
+    showMessage(unlockedMode ? `${unlockedMode} かいほう！` : `しゅっぱつ！ +${gain}`,"good",unlockedMode ? 1160 : 760);
     fireSentence(lesson.en);
     speak(lesson.en, false);
     setTimeout(()=>{
@@ -841,7 +850,34 @@
     state.messageTimer=setTimeout(()=>el.classList.remove("show"), duration || 900);
   }
 
+  function updateUnlocks(){
+    if(!state.unlocks.quick && state.modeClears.calm>=unlockRules.quick.count){
+      state.unlocks.quick=true;
+      return unlockRules.quick.label;
+    }
+    if(!state.unlocks.super && state.modeClears.quick>=unlockRules.super.count){
+      state.unlocks.super=true;
+      return unlockRules.super.label;
+    }
+    return "";
+  }
+
+  function modeUnlocked(mode){
+    return mode==="calm" || Boolean(state.unlocks[mode]);
+  }
+
+  function remainingFor(mode){
+    const rule=unlockRules[mode];
+    if(!rule || modeUnlocked(mode)) return 0;
+    return Math.max(0, rule.count - state.modeClears[rule.mode]);
+  }
+
   function setMode(mode){
+    if(!modeUnlocked(mode)){
+      const rule=unlockRules[mode];
+      showMessage(`${rule.label}は あと${remainingFor(mode)}もんで かいほう`,"bad",980);
+      return;
+    }
     state.mode=mode;
     state.movers={};
     if(!state.locked){
@@ -856,7 +892,25 @@
     $("calmBtn").classList.toggle("selected",state.mode==="calm");
     $("quickBtn").classList.toggle("selected",state.mode==="quick");
     $("superBtn").classList.toggle("selected",state.mode==="super");
-    $("helpText").textContent = state.mode==="calm"
+    $("quickBtn").disabled=!modeUnlocked("quick");
+    $("superBtn").disabled=!modeUnlocked("super");
+    $("quickBtn").textContent=modeUnlocked("quick") ? "テンポ" : `テンポ あと${remainingFor("quick")}`;
+    $("superBtn").textContent=modeUnlocked("super") ? "スーパーハード" : `スーパー あと${remainingFor("super")}`;
+    $("quickBtn").title=modeUnlocked("quick") ? "うごく車両をつかまえるモード" : "ゆっくりで2問正解すると解放";
+    $("superBtn").title=modeUnlocked("super") ? "速くて急に方向を変えるモード" : "テンポで4問正解すると解放";
+    $("helpText").textContent = progressText();
+  }
+
+  function progressText(){
+    if(!modeUnlocked("quick")){
+      return `ゆっくりで あと${remainingFor("quick")}もん正解すると、うごくモードが ひらきます。`;
+    }
+    if(!modeUnlocked("super")){
+      return state.mode==="quick"
+        ? `テンポで あと${remainingFor("super")}もん正解すると、スーパーハードが ひらきます。`
+        : "テンポが ひらきました。うごく車両を つかまえて 上へ おこう。";
+    }
+    return state.mode==="calm"
       ? "ゆっくりでは、車両は止まっています。ドラッグやタップで 上へ おこう。"
       : state.mode==="quick"
         ? "テンポでは、下の車両がゆっくり動きます。つかまえて 上へ おこう。"
@@ -881,6 +935,10 @@
     state.score=0;
     state.streak=0;
     state.cleared=0;
+    state.mode="calm";
+    state.unlocks={quick:false,super:false};
+    state.modeClears={calm:0,quick:0,super:0};
+    state.movers={};
     loadLesson();
   }
 
