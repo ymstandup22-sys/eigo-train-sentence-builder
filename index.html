@@ -392,6 +392,57 @@
     .message.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
     .message.good{background:rgba(22,101,52,.9)}
     .message.bad{background:rgba(185,28,28,.9)}
+    .rewardBreak{
+      position:fixed;
+      inset:0;
+      z-index:40;
+      display:none;
+      place-items:center;
+      padding:20px;
+      background:rgba(15,23,42,.28);
+      backdrop-filter:blur(8px);
+      pointer-events:auto;
+    }
+    .rewardBreak.show{display:grid}
+    .rewardBreak.dark{background:#020617}
+    .rewardCard{
+      width:min(560px,92vw);
+      min-height:320px;
+      border-radius:8px;
+      padding:22px;
+      display:grid;
+      gap:14px;
+      place-items:center;
+      text-align:center;
+      color:#102033;
+      background:linear-gradient(180deg,#fffdf6,#e0f2fe);
+      box-shadow:var(--shadow);
+      border:3px solid rgba(37,99,235,.18);
+    }
+    .rewardBreak.dark .rewardCard{
+      background:transparent;
+      color:#e0f2fe;
+      border-color:transparent;
+      box-shadow:none;
+    }
+    .rewardLabel{font-size:14px;font-weight:1000;color:#2563eb}
+    .rewardBreak.dark .rewardLabel{color:#93c5fd}
+    .rewardPicture{
+      width:min(340px,82vw);
+      aspect-ratio:1.38;
+      border-radius:8px;
+      display:grid;
+      place-items:center;
+      background:linear-gradient(180deg,#dbeafe,#bbf7d0);
+      border:3px solid rgba(37,99,235,.18);
+      box-shadow:inset 0 -16px 0 rgba(34,197,94,.18);
+      font-size:clamp(58px,15vw,104px);
+      letter-spacing:0;
+    }
+    .rewardBreak.dark .rewardPicture{display:none}
+    .rewardText{font-size:clamp(24px,5vw,40px);font-weight:1000;line-height:1.18;margin:0}
+    .rewardSub{font-size:17px;font-weight:900;color:#34465f;line-height:1.5;margin:0}
+    .rewardBreak.dark .rewardSub{color:#bfdbfe}
     .sentenceShot{
       position:absolute;
       left:12px;
@@ -563,6 +614,7 @@
     </section>
   </main>
 </div>
+<div class="rewardBreak" id="rewardBreak" aria-live="polite"></div>
 
 <script>
 (() => {
@@ -801,9 +853,11 @@
     fireSentence(lesson.en);
     speak(lesson.en, false);
     setTimeout(()=>{
-      state.index++;
-      if(state.index>=LESSONS.length) finish();
-      else loadLesson();
+      showRewardBreak(lesson, ()=>{
+        state.index++;
+        if(state.index>=LESSONS.length) finish();
+        else loadLesson();
+      });
     }, modeInfo[state.mode].delay);
   }
 
@@ -848,6 +902,47 @@
     el.className=`message show ${kind || ""}`;
     clearTimeout(state.messageTimer);
     state.messageTimer=setTimeout(()=>el.classList.remove("show"), duration || 900);
+  }
+
+  function showRewardBreak(lesson, onDone){
+    const overlay=$("rewardBreak");
+    const focus=focusWord(lesson.en);
+    overlay.className="rewardBreak show";
+    overlay.innerHTML=`
+      <div class="rewardCard">
+        <div class="rewardLabel">ごほうび えカード</div>
+        <div class="rewardPicture" aria-hidden="true">${escapeHtml(rewardIcon(focus))}</div>
+        <p class="rewardText">${escapeHtml(lesson.en)}</p>
+        <p class="rewardSub">${escapeHtml(lesson.ja)}</p>
+      </div>`;
+    setTimeout(()=>{
+      overlay.className="rewardBreak show dark";
+      overlay.innerHTML=`
+        <div class="rewardCard">
+          <div class="rewardLabel">おやすみタイム</div>
+          <p class="rewardText">目を とじても だいじょうぶ</p>
+          <p class="rewardSub">すこし暗くして、目と神経を休めます。</p>
+        </div>`;
+    },2300);
+    setTimeout(()=>{
+      overlay.className="rewardBreak";
+      overlay.innerHTML="";
+      onDone();
+    },5000);
+  }
+
+  function focusWord(text){
+    const lower=String(text).toLowerCase();
+    return ["grandmother","grandfather","grandson","husband","daughter","mother","sister","brother","friend","cousin","uncle","aunt","niece","wife"].find(word=>lower.includes(word)) || "friend";
+  }
+
+  function rewardIcon(word){
+    const icons={
+      grandmother:"👵", grandfather:"👴", grandson:"👦", husband:"👨", wife:"👩",
+      mother:"👩‍👧", daughter:"👧", sister:"👧", brother:"👦", friend:"😊😊",
+      cousin:"👦👧", uncle:"👨", aunt:"👩", niece:"👧"
+    };
+    return icons[word] || "😊";
   }
 
   function updateUnlocks(){
