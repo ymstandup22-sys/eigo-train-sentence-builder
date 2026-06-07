@@ -454,6 +454,14 @@
       font-size:clamp(58px,15vw,104px);
       letter-spacing:0;
     }
+    .rewardPicture.artPanel{
+      background-image:url("assets/sentence-reward-sheet.png");
+      background-size:500% 300%;
+      background-position:var(--art-x,0%) var(--art-y,0%);
+      background-repeat:no-repeat;
+      box-shadow:0 16px 42px rgba(37,99,235,.18);
+      font-size:0;
+    }
     .rewardBreak.dark .rewardPicture{display:none}
     .rewardText{font-size:clamp(24px,5vw,40px);font-weight:1000;line-height:1.18;margin:0}
     .rewardSub{font-size:17px;font-weight:900;color:#34465f;line-height:1.5;margin:0}
@@ -653,11 +661,14 @@
     { en:"He is my grandfather.", ja:"かれは わたしの おじいさん です。", grammar:"He is = かれは ... です", key:"grandfather = おじいさん" },
     { en:"She is my mother.", ja:"かのじょは わたしの おかあさん です。", grammar:"She is = かのじょは ... です", key:"mother = おかあさん" }
   ];
+  const REST_EVERY = 3;
+  const QUESTION_ROUND_KEY = "trainSentenceQuestionRoundV1";
 
   const $ = id => document.getElementById(id);
   const scene = $("scene");
   const ctx = scene.getContext("2d");
   const state = {
+    lessons:[],
     index:0,
     score:0,
     streak:0,
@@ -721,8 +732,30 @@
     return a;
   }
 
+  function nextQuestionRound(){
+    try{
+      const current=Math.max(0,Number(localStorage.getItem(QUESTION_ROUND_KEY)) || 0);
+      localStorage.setItem(QUESTION_ROUND_KEY,String(current+1));
+      return current;
+    }catch(e){
+      nextQuestionRound.memory=(nextQuestionRound.memory || 0)+1;
+      return nextQuestionRound.memory-1;
+    }
+  }
+
+  function rotatingLessons(){
+    const base=LESSONS.slice();
+    if(!base.length) return base;
+    const shift=nextQuestionRound() % base.length;
+    return base.slice(shift).concat(base.slice(0,shift));
+  }
+
+  function currentLesson(){
+    return state.lessons[state.index] || LESSONS[0];
+  }
+
   function loadLesson(){
-    const lesson=LESSONS[state.index];
+    const lesson=currentLesson();
     state.locked=false;
     state.selectedId=null;
     state.drag=null;
@@ -732,7 +765,7 @@
     state.placed=Array(lesson.en.split(" ").length).fill(null);
     $("finish").classList.remove("show");
     $("levelNow").textContent=state.index+1;
-    $("levelMax").textContent=LESSONS.length;
+    $("levelMax").textContent=state.lessons.length || LESSONS.length;
     $("meaning").textContent=lesson.ja;
     $("grammarChip").textContent=lesson.grammar;
     $("tip").textContent=`${lesson.key}。単語の でんしゃを ならべよう。`;
@@ -864,7 +897,7 @@
   }
 
   function correct(){
-    const lesson=LESSONS[state.index];
+    const lesson=currentLesson();
     state.locked=true;
     state.streak++;
     state.cleared++;
@@ -883,15 +916,24 @@
     render();
     showMessage(unlockedMode ? `${unlockedMode} かいほう！` : `しゅっぱつ！ +${gain}`,"good",unlockedMode ? 1160 : 760);
     fireSentence(lesson.en);
-    speak(lesson.en, false);
+    speakReward(lesson);
     if(state.mode!=="calm" && state.hintModeForLesson===state.mode) state.hintModeForLesson="";
+    const nextIndex=state.index+1;
+    const shouldRest = nextIndex % REST_EVERY === 0 || nextIndex >= state.lessons.length;
+    const advanceDelay = shouldRest ? modeInfo[state.mode].delay : Math.max(modeInfo[state.mode].delay, 2300);
     setTimeout(()=>{
-      showRewardBreak(lesson, ()=>{
-        state.index++;
-        if(state.index>=LESSONS.length) finish();
-        else loadLesson();
-      });
-    }, modeInfo[state.mode].delay);
+      state.index=nextIndex;
+      if(shouldRest){
+        showRewardBreak(lesson, ()=>{
+          if(state.index>=state.lessons.length) finish();
+          else loadLesson();
+        });
+      }else if(state.index>=state.lessons.length){
+        finish();
+      }else{
+        loadLesson();
+      }
+    }, advanceDelay);
   }
 
   function wrong(){
@@ -939,15 +981,15 @@
 
   function showRewardBreak(lesson, onDone){
     const overlay=$("rewardBreak");
-    const focus=focusWord(lesson.en);
     const rest=nextRestPrompt();
+    const artStyle=rewardArtStyle(lesson);
     const cardMs=2300;
     const darkRestMs=7000;
     overlay.className="rewardBreak show";
     overlay.innerHTML=`
       <div class="rewardCard">
         <div class="rewardLabel">ごほうび えカード</div>
-        <div class="rewardPicture" aria-hidden="true">${escapeHtml(rewardIcon(focus))}</div>
+        <div class="rewardPicture artPanel" style="${artStyle}" aria-hidden="true"></div>
         <p class="rewardText">${escapeHtml(lesson.en)}</p>
         <p class="rewardSub">${escapeHtml(lesson.ja)}</p>
       </div>`;
@@ -965,6 +1007,15 @@
       overlay.innerHTML="";
       onDone();
     },cardMs+darkRestMs);
+  }
+
+  function rewardArtStyle(lesson){
+    const index=Math.max(0,LESSONS.indexOf(lesson));
+    const col=index % 5;
+    const row=Math.floor(index / 5);
+    const x=col * 25;
+    const y=row * 50;
+    return `--art-x:${x}%;--art-y:${y}%;`;
   }
 
   function focusWord(text){
@@ -1035,7 +1086,7 @@
       $("modeChip").textContent=modeInfo[state.mode].label;
       $("modeChip").classList.toggle("hot", state.mode==="super");
       $("modeHint").textContent=modeInfo[state.mode].hint;
-      $("sentenceGuide").textContent=state.mode==="calm" ? (LESSONS[state.index]?.en || "") : "";
+      $("sentenceGuide").textContent=state.mode==="calm" ? (currentLesson()?.en || "") : "";
     }
   }
 
@@ -1082,6 +1133,7 @@
   }
 
   function restart(){
+    state.lessons=rotatingLessons();
     state.index=0;
     state.score=0;
     state.streak=0;
@@ -1095,19 +1147,40 @@
     loadLesson();
   }
 
-  function speak(text, soft){
+  function pickVoice(lang){
+    if(!("speechSynthesis" in window)) return null;
+    const voices=window.speechSynthesis.getVoices();
+    const base=String(lang).slice(0,2);
+    return voices.find(v=>String(v.lang).toLowerCase()===String(lang).toLowerCase())
+      || voices.find(v=>String(v.lang).toLowerCase().startsWith(base))
+      || null;
+  }
+
+  function makeUtterance(text, soft, lang){
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang=lang;
+    u.rate=lang==="ja-JP" ? .82 : (soft ? .82 : .9);
+    u.pitch=1.04;
+    u.volume=soft ? .55 : .95;
+    const picked=pickVoice(lang);
+    if(picked) u.voice=picked;
+    return u;
+  }
+
+  function speak(text, soft, lang="en-US"){
     if(!state.sound || !("speechSynthesis" in window)) return;
     try{
       window.speechSynthesis.cancel();
-      const u=new SpeechSynthesisUtterance(text);
-      u.lang="en-US";
-      u.rate=soft ? .82 : .9;
-      u.pitch=1.04;
-      u.volume=soft ? .55 : .95;
-      const voices=window.speechSynthesis.getVoices();
-      const picked=voices.find(v=>/en[-_]US/i.test(v.lang)) || voices.find(v=>/^en/i.test(v.lang));
-      if(picked) u.voice=picked;
-      window.speechSynthesis.speak(u);
+      window.speechSynthesis.speak(makeUtterance(text, soft, lang));
+    }catch(e){}
+  }
+
+  function speakReward(lesson){
+    if(!state.sound || !("speechSynthesis" in window)) return;
+    try{
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(makeUtterance(lesson.ja, false, "ja-JP"));
+      window.speechSynthesis.speak(makeUtterance(lesson.en, false, "en-US"));
     }catch(e){}
   }
 
@@ -1190,7 +1263,7 @@
   });
 
   document.addEventListener("keydown", event=>{
-    if(event.key===" "){event.preventDefault();speak(LESSONS[state.index]?.en || "", false);}
+    if(event.key===" "){event.preventDefault();speak(currentLesson()?.en || "", false);}
     if(event.key==="Backspace" && state.selectedId){event.preventDefault();moveToYard(state.selectedId);}
     if(event.key>="1" && event.key<="9" && state.selectedId){
       const slot=Number(event.key)-1;
@@ -1198,7 +1271,7 @@
     }
   });
 
-  $("readBtn").onclick=()=>speak(LESSONS[state.index]?.en || "", false);
+  $("readBtn").onclick=()=>speak(currentLesson()?.en || "", false);
   $("soundBtn").onclick=()=>{state.sound=!state.sound;if(!state.sound && "speechSynthesis" in window) window.speechSynthesis.cancel();render();};
   $("hintBtn").onclick=hint;
   $("shuffleBtn").onclick=()=>{if(!state.locked){state.cars=shuffle(state.cars);state.movers={};render();}};
@@ -1452,7 +1525,7 @@
     window.speechSynthesis.onvoiceschanged=()=>{};
   }
   resizeScene();
-  loadLesson();
+  restart();
   requestAnimationFrame(frame);
 })();
 </script>
