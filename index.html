@@ -558,7 +558,7 @@
       <div class="stat"><small>さいこう</small><b id="best">0</b></div>
     </div>
     <div class="soundState">
-      <button id="soundBtn" class="secondary" type="button">音あり</button>
+      <button id="soundBtn" class="secondary" type="button">音声オン</button>
       <button id="readBtn" class="good" type="button">よむ</button>
     </div>
   </header>
@@ -724,7 +724,7 @@
     $("streak").textContent=state.streak;
     $("cleared").textContent=state.cleared;
     $("best").textContent=state.best;
-    $("soundBtn").textContent=state.sound ? "音あり" : "音なし";
+    $("soundBtn").textContent=state.sound ? "音声オン" : "音声オフ";
 
     const slots=$("slots");
     slots.innerHTML="";
