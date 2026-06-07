@@ -231,6 +231,40 @@
     }
     .slot:hover,.slot.focus{border-color:rgba(37,99,235,.8);background:rgba(219,234,254,.82)}
     .slot.goodPlace{border-color:rgba(22,163,74,.8);background:#dcfce7}
+    .slot.leadHint{
+      border-color:rgba(37,99,235,.78);
+      background:linear-gradient(180deg,rgba(239,246,255,.94),rgba(219,234,254,.78));
+      box-shadow:inset 0 0 0 3px rgba(255,255,255,.62),0 12px 24px rgba(37,99,235,.18);
+      animation:leadSlotPulse 1.7s ease-in-out infinite;
+    }
+    .leadLetter{
+      position:relative;
+      pointer-events:none;
+      width:min(66px,78%);
+      aspect-ratio:1.38;
+      border-radius:12px 12px 8px 8px;
+      display:grid;
+      place-items:center;
+      color:#1d4ed8;
+      font-size:clamp(30px,5vw,44px);
+      line-height:1;
+      font-weight:1000;
+      background:linear-gradient(180deg,#ffffff,#bfdbfe);
+      border:2px solid rgba(37,99,235,.24);
+      box-shadow:0 9px 0 rgba(30,64,175,.2),0 15px 24px rgba(37,99,235,.16);
+    }
+    .leadLetter::before,.leadLetter::after{
+      content:"";
+      position:absolute;
+      bottom:-8px;
+      width:15px;
+      height:15px;
+      border-radius:50%;
+      background:#1f2937;
+      border:3px solid #93c5fd;
+    }
+    .leadLetter::before{left:11px}
+    .leadLetter::after{right:11px}
     .yardWrap{
       position:relative;
       min-height:0;
@@ -314,6 +348,12 @@
     .wordCar.color3{background:linear-gradient(180deg,#fefce8,#fde047)}
     .wordCar.color4{background:linear-gradient(180deg,#f5f3ff,#c4b5fd)}
     .wordCar.selected{outline:5px solid rgba(250,204,21,.82);filter:saturate(1.12)}
+    .wordCar.leadMatch{
+      outline:5px solid rgba(37,99,235,.45);
+      box-shadow:0 10px 0 rgba(30,64,175,.24),0 20px 28px rgba(37,99,235,.22),0 0 0 8px rgba(219,234,254,.68);
+      filter:saturate(1.12);
+      animation:leadGlow 1.55s ease-in-out infinite;
+    }
     .wordCar.dragSource{opacity:.34}
     .wordCar.ghost{
       position:fixed;
@@ -376,6 +416,11 @@
       0%{opacity:0;transform:translateX(-48px) scale(.96)}
       12%{opacity:1}
       100%{opacity:0;transform:translateX(96vw) scale(1.02)}
+    }
+    @keyframes leadSlotPulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+    @keyframes leadGlow{0%,100%{filter:saturate(1.08) brightness(1)}50%{filter:saturate(1.24) brightness(1.08)}}
+    @media (prefers-reduced-motion:reduce){
+      .slot.leadHint,.wordCar.leadMatch{animation:none}
     }
     .controls{
       display:grid;
@@ -566,9 +611,9 @@
   };
 
   const modeInfo = {
-    calm:{ label:"ゆっくり", hint:"タップでも うごかせます", delay:1180, moving:false },
-    quick:{ label:"テンポ", hint:"正解すると すぐ次へ すすみます", delay:760, moving:false },
-    super:{ label:"スーパーハード", hint:"うごく車両を つかまえよう", delay:680, moving:true }
+    calm:{ label:"ゆっくり", hint:"車両は とまっています", delay:1180, moving:false, speed:0, chaos:0 },
+    quick:{ label:"テンポ", hint:"うごく車両を つかまえよう", delay:760, moving:true, speed:1, chaos:0 },
+    super:{ label:"スーパーハード", hint:"速くて きゅうに まがります", delay:680, moving:true, speed:1.9, chaos:1 }
   };
 
   function wordsFor(sentence){
@@ -633,6 +678,16 @@
         const car=state.cars.find(c=>c.id===id);
         slot.appendChild(carElement(car));
         if(car.order===i) slot.classList.add("goodPlace");
+      }else if(showLeadHint(i)){
+        const letter=leadLetter();
+        if(letter){
+          slot.classList.add("leadHint");
+          slot.setAttribute("aria-label",`1ばんめのことばは ${letter} からはじまります`);
+          const hint=document.createElement("div");
+          hint.className="leadLetter";
+          hint.innerHTML=`<span>${escapeHtml(letter)}</span>`;
+          slot.appendChild(hint);
+        }
       }
       slots.appendChild(slot);
     });
@@ -649,6 +704,7 @@
     const el=document.createElement("div");
     el.className=`wordCar color${car.color}`;
     if(state.selectedId===car.id) el.classList.add("selected");
+    if(showLeadCar(car)) el.classList.add("leadMatch");
     el.dataset.id=car.id;
     el.innerHTML=`<span class="coupler"></span><span>${escapeHtml(car.text)}</span>`;
     return el;
@@ -665,6 +721,24 @@
 
   function slotOf(id){
     return state.placed.findIndex(value=>value===id);
+  }
+
+  function showLeadHint(slotIndex){
+    return state.index===0 && slotIndex===0 && !state.placed[0] && !state.locked;
+  }
+
+  function leadCar(){
+    return state.cars.find(car=>car.order===0);
+  }
+
+  function leadLetter(){
+    const car=leadCar();
+    const match=String(car ? car.text : "").match(/[A-Za-z]/);
+    return match ? match[0].toUpperCase() : "";
+  }
+
+  function showLeadCar(car){
+    return state.index===0 && !state.placed[0] && !state.locked && car && car.order===0;
   }
 
   function placeCar(id, targetSlot){
@@ -769,6 +843,7 @@
 
   function setMode(mode){
     state.mode=mode;
+    state.movers={};
     if(!state.locked){
       render();
       $("modeChip").textContent=modeInfo[state.mode].label;
@@ -781,9 +856,11 @@
     $("calmBtn").classList.toggle("selected",state.mode==="calm");
     $("quickBtn").classList.toggle("selected",state.mode==="quick");
     $("superBtn").classList.toggle("selected",state.mode==="super");
-    $("helpText").textContent = state.mode==="super"
-      ? "スーパーハードでは、もんだいが進むほど 下の車両が速く動きます。つかまえて 上へ おこう。"
-      : "車両をドラッグして ならべます。ぜんぶ入ると すぐに こたえあわせをします。";
+    $("helpText").textContent = state.mode==="calm"
+      ? "ゆっくりでは、車両は止まっています。ドラッグやタップで 上へ おこう。"
+      : state.mode==="quick"
+        ? "テンポでは、下の車両がゆっくり動きます。つかまえて 上へ おこう。"
+        : "スーパーハードでは、車両が速く動いて 急に方向を変えます。よく見て つかまえよう。";
   }
 
   function hint(){
@@ -929,11 +1006,13 @@
       const w=el.offsetWidth || 100;
       const h=el.offsetHeight || 54;
       if(!state.movers[car.id]){
+        const settings=modeInfo[state.mode];
         state.movers[car.id]={
           x:12 + (i*113) % Math.max(80,rect.width-w-24),
           y:12 + (i*61) % Math.max(60,rect.height-h-24),
-          vx:(Math.random()<.5?-1:1)*(36+state.index*6+Math.random()*28),
-          vy:(Math.random()<.5?-1:1)*(24+state.index*4+Math.random()*18)
+          vx:(Math.random()<.5?-1:1)*(36+state.index*6+Math.random()*28)*settings.speed,
+          vy:(Math.random()<.5?-1:1)*(24+state.index*4+Math.random()*18)*settings.speed,
+          turnAt:performance.now()+520+Math.random()*620
         };
       }
       const m=state.movers[car.id];
@@ -944,10 +1023,12 @@
   }
 
   function updateMoving(dt){
-    if(!modeInfo[state.mode].moving || state.locked) return;
+    const settings=modeInfo[state.mode];
+    if(!settings.moving || state.locked) return;
     const yard=$("yard");
     const rect=yard.getBoundingClientRect();
     if(rect.width<40 || rect.height<40) return;
+    const now=performance.now();
     unplacedCars().forEach(car=>{
       if(state.drag && state.drag.id===car.id) return;
       const el=yard.querySelector(`[data-id="${CSS.escape(car.id)}"]`);
@@ -956,6 +1037,13 @@
       const w=el.offsetWidth || 100;
       const h=el.offsetHeight || 54;
       const levelBoost=1 + state.index*.04;
+      if(settings.chaos && now>m.turnAt){
+        const angle=Math.random()*Math.PI*2;
+        const speed=(74+state.index*8+Math.random()*58)*settings.speed;
+        m.vx=Math.cos(angle)*speed;
+        m.vy=Math.sin(angle)*speed;
+        m.turnAt=now+260+Math.random()*520;
+      }
       m.x += m.vx * dt * levelBoost;
       m.y += m.vy * dt * levelBoost;
       if(m.x<6){m.x=6;m.vx=Math.abs(m.vx);}
