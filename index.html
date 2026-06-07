@@ -907,6 +907,8 @@
   function showRewardBreak(lesson, onDone){
     const overlay=$("rewardBreak");
     const focus=focusWord(lesson.en);
+    const cardMs=2300;
+    const darkRestMs=7000;
     overlay.className="rewardBreak show";
     overlay.innerHTML=`
       <div class="rewardCard">
@@ -923,12 +925,12 @@
           <p class="rewardText">目を とじても だいじょうぶ</p>
           <p class="rewardSub">すこし暗くして、目と神経を休めます。</p>
         </div>`;
-    },2300);
+    },cardMs);
     setTimeout(()=>{
       overlay.className="rewardBreak";
       overlay.innerHTML="";
       onDone();
-    },5000);
+    },cardMs+darkRestMs);
   }
 
   function focusWord(text){
