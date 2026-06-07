@@ -188,6 +188,21 @@
       overflow:hidden;
       padding:16px 12px 22px;
     }
+    .sentenceGuide{
+      position:absolute;
+      inset:10px 14px auto 14px;
+      z-index:1;
+      color:rgba(30,58,138,.15);
+      font-size:clamp(20px,3.7vw,44px);
+      line-height:1.05;
+      font-weight:1000;
+      text-align:center;
+      pointer-events:none;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      letter-spacing:0;
+    }
     .rail{
       position:absolute;
       left:0;
@@ -581,6 +596,7 @@
 
     <section class="playfield" id="playfield" aria-label="ゲーム">
       <div class="railWrap" id="railWrap">
+        <div class="sentenceGuide" id="sentenceGuide" aria-hidden="true"></div>
         <div class="rail"></div>
         <div class="slots" id="slots"></div>
         <div class="sentenceShot" id="sentenceShot"></div>
@@ -650,6 +666,8 @@
     mode:"calm",
     unlocks:{ quick:false, super:false },
     modeClears:{ calm:0, quick:0, super:0 },
+    modeHintUsed:{ quick:false, super:false },
+    hintModeForLesson:"calm",
     cars:[],
     placed:[],
     selectedId:null,
@@ -721,6 +739,7 @@
     $("modeChip").textContent=modeInfo[state.mode].label;
     $("modeChip").classList.toggle("hot", state.mode==="super");
     $("modeHint").textContent=modeInfo[state.mode].hint;
+    $("sentenceGuide").textContent=state.mode==="calm" ? lesson.en : "";
     $("slots").style.setProperty("--slot-count", state.placed.length);
     $("slots").classList.remove("launch");
     $("sentenceShot").classList.remove("fire");
@@ -792,7 +811,11 @@
   }
 
   function showLeadHint(slotIndex){
-    return state.index===0 && slotIndex===0 && !state.placed[0] && !state.locked;
+    return leadHintActive() && slotIndex===0 && !state.placed[0] && !state.locked;
+  }
+
+  function leadHintActive(){
+    return state.mode==="calm" || state.hintModeForLesson===state.mode;
   }
 
   function leadCar(){
@@ -806,7 +829,7 @@
   }
 
   function showLeadCar(car){
-    return state.index===0 && !state.placed[0] && !state.locked && car && car.order===0;
+    return leadHintActive() && !state.placed[0] && !state.locked && car && car.order===0;
   }
 
   function placeCar(id, targetSlot){
@@ -861,6 +884,7 @@
     showMessage(unlockedMode ? `${unlockedMode} かいほう！` : `しゅっぱつ！ +${gain}`,"good",unlockedMode ? 1160 : 760);
     fireSentence(lesson.en);
     speak(lesson.en, false);
+    if(state.mode!=="calm" && state.hintModeForLesson===state.mode) state.hintModeForLesson="";
     setTimeout(()=>{
       showRewardBreak(lesson, ()=>{
         state.index++;
@@ -996,6 +1020,14 @@
       showMessage(`${rule.label}は あと${remainingFor(mode)}もんで かいほう`,"bad",980);
       return;
     }
+    if(mode!==state.mode && mode!=="calm" && !state.modeHintUsed[mode]){
+      state.hintModeForLesson=mode;
+      state.modeHintUsed[mode]=true;
+    }else if(mode!==state.mode && mode==="calm"){
+      state.hintModeForLesson="calm";
+    }else if(mode!==state.mode){
+      state.hintModeForLesson="";
+    }
     state.mode=mode;
     state.movers={};
     if(!state.locked){
@@ -1003,6 +1035,7 @@
       $("modeChip").textContent=modeInfo[state.mode].label;
       $("modeChip").classList.toggle("hot", state.mode==="super");
       $("modeHint").textContent=modeInfo[state.mode].hint;
+      $("sentenceGuide").textContent=state.mode==="calm" ? (LESSONS[state.index]?.en || "") : "";
     }
   }
 
@@ -1056,6 +1089,8 @@
     state.mode="calm";
     state.unlocks={quick:false,super:false};
     state.modeClears={calm:0,quick:0,super:0};
+    state.modeHintUsed={quick:false,super:false};
+    state.hintModeForLesson="calm";
     state.movers={};
     loadLesson();
   }
